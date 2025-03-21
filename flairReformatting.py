@@ -51,14 +51,13 @@ def reformating(input_file):
 
     df = pd.read_csv(input_file)
 
-    df_transposed = df.T
+    df_transposed = df.T # trasnpose 
 
-    # dejar solo las columnas feature name y segment
+    # only considering columns feature name and segment as columns and values respectively
     df_filtered = df_transposed.iloc[-2:]
     
     output_file = output_dir+'/'+file_name
 
-    # Guardar el CSV transpuesto
     df_filtered.to_csv(output_file, header=False, index=False)
 
 # ---------------------------- MAIN ----------------------------
