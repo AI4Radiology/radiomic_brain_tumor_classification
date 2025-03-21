@@ -12,6 +12,8 @@ parser.add_argument("outputDir", help="ruta al directorio de salida")
 
 args = parser.parse_args()
 
+inter_dir=args.dataDir+'/processedData'
+
 
 # ---------------------------- UTILIDADES ----------------------------
 
@@ -43,22 +45,22 @@ def tupleExtraction(df, tuplas):
 
 def reformating(input_file):
 
-    output_dir=args.dataDir+'/processedData'
     file_name = os.path.basename(input_file)
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(inter_dir):
+        os.makedirs(inter_dir)
 
     df = pd.read_csv(input_file)
 
+    # only considering columns feature name and segment as columns and values respectively
+    df = df.set_index('Feature Name')
+    df.drop(columns=['Image type', 'Feature Class'], inplace=True)
+
     df_transposed = df.T # trasnpose 
 
-    # only considering columns feature name and segment as columns and values respectively
-    df_filtered = df_transposed.iloc[-2:]
-    
-    output_file = output_dir+'/'+file_name
+    output_file = inter_dir+'/'+file_name
 
-    df_filtered.to_csv(output_file, header=False, index=False)
+    df_transposed.to_csv(output_file)
 
 # ---------------------------- MAIN ----------------------------
 
@@ -73,7 +75,7 @@ for file in files:
         df = pd.read_csv(f"{args.dataDir}/{file}")
         
         reformating(args.dataDir+'/'+file)
-        df = pd.read_csv(f"/home/luis/Desktop/PDG/data/processedData/processed-{file}")
+        df = pd.read_csv(inter_dir+'/'+file)
         
         tuplas = ['Spacing', 'Size', 'Spacing.1', 'Size.1', 'BoundingBox', 'CenterOfMassIndex', 'CenterOfMass']
         df_tuple=tupleExtraction(df, tuplas)
@@ -83,6 +85,6 @@ for file in files:
         df_tuple.set_index('Id', inplace=True)
 
         df=pd.merge(df_tuple, df.drop(columns=tuplas),  on='Id', how='inner')
-    finalDf = pd.concat([finalDf, df], axis=0)
+        finalDf = pd.concat([finalDf, df])
 
-finalDf.to_csv(args.outputDir+'/flair_df.csv', header=False)
+finalDf.to_csv(args.outputDir+'/flair_df.csv')
