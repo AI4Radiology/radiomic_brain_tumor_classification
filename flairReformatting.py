@@ -15,7 +15,7 @@ args = parser.parse_args()
 inter_dir=args.dataDir+'/processedData'
 
 
-# ---------------------------- UTILIDADES ----------------------------
+# ---------------------------- UTILITIES ----------------------------
 
 def tupleExtraction(df, tuplas):
     tuple_df=pd.DataFrame()
@@ -52,15 +52,17 @@ def reformating(input_file):
 
     df = pd.read_csv(input_file)
 
-    # only considering columns feature name and segment as columns and values respectively
+    # only considering columns 'Feature Name' and 'Segment...' as columns and values respectively
     df = df.set_index('Feature Name')
     df.drop(columns=['Image type', 'Feature Class'], inplace=True)
 
-    df_transposed = df.T # trasnpose 
+    df_transposed = df.T 
 
     output_file = inter_dir+'/'+file_name
 
-    df_transposed.to_csv(output_file)
+    df_transposed.to_csv(output_file) #writes processed file
+
+
 
 # ---------------------------- MAIN ----------------------------
 
@@ -70,12 +72,12 @@ finalDf = pd.DataFrame()
 for file in files:
 
     if file.endswith(".csv"):
-
+        
         print(f"---Procesando {file}...")
         df = pd.read_csv(f"{args.dataDir}/{file}")
         
-        reformating(args.dataDir+'/'+file)
-        df = pd.read_csv(inter_dir+'/'+file)
+        reformating(args.dataDir+'/'+file) 
+        df = pd.read_csv(inter_dir+'/'+file) #reads processed file
         
         tuplas = ['Spacing', 'Size', 'Spacing.1', 'Size.1', 'BoundingBox', 'CenterOfMassIndex', 'CenterOfMass']
         df_tuple=tupleExtraction(df, tuplas)
@@ -85,6 +87,14 @@ for file in files:
         df_tuple.set_index('Id', inplace=True)
 
         df=pd.merge(df_tuple, df.drop(columns=tuplas),  on='Id', how='inner')
+
+        # Setting up labels based for tumor grade (high or low) implied by the file name 
+        match = re.search(r'\d', file)
+        first_digit = match.group() # There is no error handlidng because if there is no match, file name is not valid.
+        if first_digit == '1' or first_digit == '2':
+            df['highGrade'] = 0
+        else:
+            df['highGrade'] = 1 
         finalDf = pd.concat([finalDf, df])
 
 finalDf.to_csv(args.outputDir+'/flair_df.csv')
