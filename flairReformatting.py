@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 import re
-from scipy import stats
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -98,9 +97,9 @@ for file in files:
         match = re.search(r'\d', file)
         first_digit = match.group() # There is no error handlidng because if there is no match, file name is not valid.
         if first_digit == '1' or first_digit == '2':
-            df['highGrade'] = 0
+            df['highGrade'] = False
         else:
-            df['highGrade'] = 1 
+            df['highGrade'] = True 
         finalDf = pd.concat([finalDf, df])
 
 finalDf.to_csv(args.outputDir+'/flair_df.csv')
