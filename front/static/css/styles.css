@@ -1,0 +1,50 @@
+:root {
+    --primary: #20c997;
+    --secondary: #28a745;
+    --light: #f8f9fa;
+    --white: #ffffff;
+    --dark: #343a40;
+}
+
+body {
+    background-color: var(--light);
+}
+
+.accordion-button {
+    background-color: var(--white);
+    color: var(--dark);
+    font-weight: 500;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: var(--white);
+    color: var(--dark);
+    box-shadow: none;
+}
+
+.btn-primary-custom {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: var(--white);
+}
+
+.btn-primary-custom:hover {
+    background-color: #1aa179;
+    border-color: #1aa179;
+}
+
+.btn-success-custom {
+    background-color: var(--secondary);
+    border-color: var(--secondary);
+    color: var(--white);
+}
+
+.btn-success-custom:hover {
+    background-color: #218838;
+    border-color: #218838;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.25rem rgba(32, 201, 151, 0.25);
+}
