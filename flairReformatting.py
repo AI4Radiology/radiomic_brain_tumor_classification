@@ -19,32 +19,47 @@ inter_dir=args.dataDir+'/processedData'
 
 def tupleExtraction(df):
     for col in df.columns:
+        print(f"Processing column: {col}")
         try: 
             parsed = ast.literal_eval(df[col][0])  # [0] because its a dataframe with 1 row
             if isinstance(parsed, tuple):
-                # Extract tuple values and clean them
-                vals = [re.sub(r'[()]', '', str(x)) for x in df[col]]  # Convert to strings
-                vals = [x.split(',') for x in vals]  
+                if(len(parsed) == 3): 
+                    vol=1
+                    for num in parsed:
+                        vol *= num
+                    df[col] = vol  
+                elif (len(parsed) == 6): #if the tuple has 6 dimensions, its the bounding box
+                    coordenates = parsed[:3]
+                    volTuple=parsed[-3:]
+                    vol=1
+                    for num in volTuple:
+                        vol *= num
+                    df[col] = vol
+                    # Extract tuple values and clean them
+                    vals = [re.sub(r'[()]', '', str(coordenates)) ]  # Convert to strings
+                    print('VALS 1: ', vals)
+                    vals = [vals[0].split(',')] #vals[0] because re.sub returns a list but we only need the one element inside.
+                    vals=vals[0] # same thing as above
+                    print('VALS 2: ', vals)
+                    # Create new DataFrame with the extracted values
+                    asciiNum = 97  # ASCII 'a'
+                    temp_df = pd.DataFrame()
 
-                # Create new DataFrame with the extracted values
-                asciiNum = 97  # ASCII 'a'
-                temp_df = pd.DataFrame()
-
-                for row_idx, tpl in enumerate(vals):  
-                    for i in range(len(tpl)):
+                    i=0
+                    for val in enumerate(vals):  
                         newAscii = chr(asciiNum + i)  # Convert to letter
                         newCol = f"{newAscii}.{col}"  
-                        
+                        i+=1
                         if newCol not in temp_df.columns:
                             temp_df[newCol] = None  
                         
-                        temp_df.loc[row_idx, newCol] = tpl[i]
+                        temp_df[newCol] = float(val[0])
                         temp_df[newCol]=pd.to_numeric(temp_df[newCol])
-                
-                df.drop(columns=[col], inplace=True)  
-                df = pd.concat([df, temp_df], axis=1)
-        except (ValueError, SyntaxError):
-            
+                        print(temp_df[newCol].dtype)
+                    print('TEMP DF: ', temp_df)
+                    df = pd.concat([df, temp_df], axis=1)
+        except (ValueError, SyntaxError) as e:
+            print(f"Error caught: {e}")
             pass
 
     return df
