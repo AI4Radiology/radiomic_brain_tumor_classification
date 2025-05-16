@@ -22,8 +22,8 @@ inter_dir=args.dataDir+'/processedData'
 
 def tupleExtraction(df):
     for col in df.columns:
-        print(f"Processing column: {col}")
         try: 
+            print(f"Processing column: {col}")
             parsed = ast.literal_eval(df[col][0])  # [0] because its a dataframe with 1 row
             if isinstance(parsed, tuple):
                 if (re.search('BoundingBox', col) or re.search('CenterOfMassIndex', col)): 
@@ -35,26 +35,26 @@ def tupleExtraction(df):
                     df[col] = vol
                 
                     # Extract tuple values and clean them
-                    vals = [re.sub(r'[()]', '', str(coordenates)) ]  # Convert to strings
+                    vals = re.sub(r'[()]', '', str(coordenates))   # Convert to strings
                     print('VALS 1: ', vals)
-                    vals = [vals[0].split(',')] #vals[0] because re.sub returns a list but we only need the one element inside.
-                    vals=vals[0] # same thing as above
+                    vals = vals.split(',')
+                    vals=[float(x.strip()) for x in vals]  # Convert to float
                     print('VALS 2: ', vals)
                     # Create new DataFrame with the extracted values
-                    asciiNum = 97  # ASCII 'a'
+                    xyz=['x', 'y', 'z']
                     temp_df = pd.DataFrame()
-
+                    
                     i=0
-                    for val in enumerate(vals):  
-                        newAscii = chr(asciiNum + i)  # Convert to letter
-                        newCol = f"{newAscii}.{col}"  
-                        i+=1
+                    for i, val in enumerate(vals): 
+                        print('looop val:', val) 
+                        newCol = f"{xyz[i]}.{col}"  
                         if newCol not in temp_df.columns:
                             temp_df[newCol] = None  
                         
-                        temp_df[newCol] = float(val[0])
+                        df.loc[0, newCol] = val  # Asignar a la fila 0 directamente
                         temp_df[newCol]=pd.to_numeric(temp_df[newCol])
                         print(temp_df[newCol].dtype)
+
                     print('TEMP DF: ', temp_df)
                     df = pd.concat([df, temp_df], axis=1)
 
@@ -70,7 +70,7 @@ def tupleExtraction(df):
                         vol *= num
                     df[col] = vol 
         except (ValueError, SyntaxError) as e:
-            print(f"Error caught: {e}")
+            #print(f"Error caught: {e}")
             pass
 
     return df
