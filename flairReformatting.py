@@ -17,24 +17,23 @@ inter_dir=args.dataDir+'/processedData'
 
 # ---------------------------- UTILITIES ----------------------------
 
+#def tupleToColumns:
+
+
 def tupleExtraction(df):
     for col in df.columns:
         print(f"Processing column: {col}")
         try: 
             parsed = ast.literal_eval(df[col][0])  # [0] because its a dataframe with 1 row
             if isinstance(parsed, tuple):
-                if(len(parsed) == 3): 
-                    vol=1
-                    for num in parsed:
-                        vol *= num
-                    df[col] = vol  
-                elif (len(parsed) == 6): #if the tuple has 6 dimensions, its the bounding box
+                if (re.search('BoundingBox', col) or re.search('CenterOfMassIndex', col)): 
                     coordenates = parsed[:3]
                     volTuple=parsed[-3:]
                     vol=1
                     for num in volTuple:
                         vol *= num
                     df[col] = vol
+                
                     # Extract tuple values and clean them
                     vals = [re.sub(r'[()]', '', str(coordenates)) ]  # Convert to strings
                     print('VALS 1: ', vals)
@@ -58,6 +57,18 @@ def tupleExtraction(df):
                         print(temp_df[newCol].dtype)
                     print('TEMP DF: ', temp_df)
                     df = pd.concat([df, temp_df], axis=1)
+
+                    if (re.search('BoundingBox', col)):
+                        volTuple=parsed[-3:]
+                        vol=1
+                        for num in volTuple:
+                            vol *= num
+                        df[col] = vol 
+                else:                    
+                    vol=1
+                    for num in parsed:
+                        vol *= num
+                    df[col] = vol 
         except (ValueError, SyntaxError) as e:
             print(f"Error caught: {e}")
             pass
