@@ -17,9 +17,6 @@ inter_dir=args.dataDir+'/processedData'
 
 # ---------------------------- UTILITIES ----------------------------
 
-#def tupleToColumns:
-
-
 def tupleExtraction(df):
     for col in df.columns:
         try: 
@@ -27,48 +24,52 @@ def tupleExtraction(df):
             parsed = ast.literal_eval(df[col][0])  # [0] because its a dataframe with 1 row
             if isinstance(parsed, tuple):
                 if (re.search('BoundingBox', col) or re.search('CenterOfMassIndex', col)): 
-                    coordenates = parsed[:3]
-                    volTuple=parsed[-3:]
-                    vol=1
-                    for num in volTuple:
-                        vol *= num
-                    df[col] = vol
-                
-                    # Extract tuple values and clean them
-                    vals = re.sub(r'[()]', '', str(coordenates))   # Convert to strings
-                    print('VALS 1: ', vals)
-                    vals = vals.split(',')
-                    vals=[float(x.strip()) for x in vals]  # Convert to float
-                    print('VALS 2: ', vals)
-                    # Create new DataFrame with the extracted values
-                    xyz=['x', 'y', 'z']
-                    temp_df = pd.DataFrame()
                     
-                    i=0
-                    for i, val in enumerate(vals): 
-                        print('looop val:', val) 
-                        newCol = f"{xyz[i]}.{col}"  
-                        if newCol not in temp_df.columns:
-                            temp_df[newCol] = None  
+                    vols=[]
+                    all_coordinates = []
+                    x_vals=[]
+                    y_vals=[]
+                    z_vals=[]
+                    for row in df[col]:
+                        parsed=ast.literal_eval(row)
+                        coordinates=parsed[:3]
+                        all_coordinates.append(coordinates)
                         
-                        df.loc[0, newCol] = val  # Asignar a la fila 0 directamente
-                        temp_df[newCol]=pd.to_numeric(temp_df[newCol])
-                        print(temp_df[newCol].dtype)
-
-                    print('TEMP DF: ', temp_df)
-                    df = pd.concat([df, temp_df], axis=1)
-
-                    if (re.search('BoundingBox', col)):
+                        # Extract tuple values and clean them
                         volTuple=parsed[-3:]
                         vol=1
                         for num in volTuple:
                             vol *= num
-                        df[col] = vol 
-                else:                    
-                    vol=1
-                    for num in parsed:
-                        vol *= num
-                    df[col] = vol 
+                        vols.append(vol)
+                        
+                        vals = re.sub(r'[()]', '', str(coordinates))   # Convert to strings
+                        print('VALS 1: ', vals)
+                        vals = vals.split(',')
+                        vals=[float(x.strip()) for x in vals]  # Convert to float
+                        print('VALS 2: ', vals)
+                        x_vals.append(vals[0])
+                        y_vals.append(vals[1])
+                        z_vals.append(vals[2])
+                        # Create new DataFrame with the extracted values
+                    
+                    df.drop(columns=[col], inplace=True)  # Drop the original column
+                    df[f"x.{col}"]= x_vals
+                    df[f"y.{col}"]= y_vals  
+                    df[f"z.{col}"]= z_vals
+
+                    if (re.search('BoundingBox', col)):
+                        df[col] = vols
+                
+                else: # El resto de columnas de tupla son tuplas de 3 medidas para el volumen
+                    vols = []             
+                    for row in df[col]:
+                        volTuple=parsed[-3:]
+                        vol=1
+                        for num in volTuple:
+                            vol *= num
+                        vols.append(vol)
+                    df[col] = vols 
+        
         except (ValueError, SyntaxError) as e:
             #print(f"Error caught: {e}")
             pass
@@ -102,6 +103,47 @@ def reformating(input_file):
 
 
 
+def prepareData(df):
+    #print('CHECKPOINT 0: ', df.index) 
+    #column ordering
+    sorted_columns = sorted(df.columns)
+    df=df[sorted_columns]
+    
+    # Object columns exclusion (only contains meta data)
+    df_meta=df.select_dtypes(include=['object'])
+    df.drop(columns = list(df_meta.columns) + ['Minimum/Image-original/diagnostics'], inplace=True)
+    
+    # remove columns with only one unique value
+    df = df.loc[:, df.nunique() > 1]
+
+    # Extract 15 most correlated columns with target variable 'highGrade'    
+    df_cp=df.copy()
+    print(df.shape)
+    correlation_with_target = df.corr()['highGrade'].drop('highGrade').sort_values(ascending=False)
+    top = correlation_with_target.abs().sort_values(ascending=False).head(15)
+    cols_to_drop=[col for col in df.columns if col not in top.index]
+    df.drop(columns=cols_to_drop, inplace=True)
+    df['highGrade']=df_cp['highGrade']
+    print(df.shape)
+    print('Columns selected: ', df.columns)
+    # OUTLIER HANDLING
+    print('CHECKPOINT 1: ', df.index)
+    for col in df.drop(columns=['highGrade']).columns:
+        print(f"// dtype: {df[col].dtype}")
+        Q1 = df[col].quantile(0.25)
+        Q3 = df[col].quantile(0.75)
+        IQR = Q3 - Q1
+
+        lower_bound = Q1 - 6 * IQR
+        upper_bound = Q3 + 6 * IQR
+
+        # Reeplace outliers by limits (capping)
+        df[col] = df[col].apply(lambda x: upper_bound if x > upper_bound else (lower_bound if x < lower_bound else x))
+    print('CHECKPOINT 2: ', df.shape)
+    return df
+
+
+
 # ---------------------------- MAIN ----------------------------
 
 files = os.listdir(args.dataDir)
@@ -128,4 +170,8 @@ for file in files:
             df['highGrade'] = True 
         finalDf = pd.concat([finalDf, df])
 
-finalDf.to_csv(args.outputDir+'/flair_df.csv')
+finalDf.to_csv(args.outputDir+'/base_data.csv')
+finalDf.set_index('Id', inplace=True)
+finalDf = prepareData(finalDf)
+
+finalDf.to_csv(args.outputDir+'/prepared_data.csv')
