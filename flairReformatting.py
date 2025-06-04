@@ -134,8 +134,8 @@ def prepareData(df):
         Q3 = df[col].quantile(0.75)
         IQR = Q3 - Q1
 
-        lower_bound = Q1 - 6 * IQR
-        upper_bound = Q3 + 6 * IQR
+        lower_bound = Q1 - 8 * IQR
+        upper_bound = Q3 + 8 * IQR
 
         # Reeplace outliers by limits (capping)
         df[col] = df[col].apply(lambda x: upper_bound if x > upper_bound else (lower_bound if x < lower_bound else x))
