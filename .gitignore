@@ -39,3 +39,4 @@ report/
 *.spec 
 
 *Identifier
+*.csv
