@@ -1,0 +1,8 @@
+{
+    "accuracy": 0.0,
+    "auc_roc": 0.0,
+    "f1_score": 0.0,
+    "sensitivity": 0.9,
+    "specificity": 0.10,
+    "positive_precision": 0.0
+} 
