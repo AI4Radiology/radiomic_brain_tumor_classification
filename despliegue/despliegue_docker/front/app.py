@@ -54,5 +54,27 @@ def retreive_last_predictions():
         return render_template('index.html', 
                              error_message=f"Error al obtener datos: {response.text}")
     
+@app.route('/update_model', methods=['POST'])
+def update_model():
+    file = request.files['file']
+    if not file.filename.endswith('.zip'):
+        return render_template('index.html', 
+                             error_message="El archivo debe ser un ZIP")
+    
+    response = requests.post(
+        f"{FASTAPI_URL}/update_model",
+        files={'file': (file.filename, file.stream, file.mimetype)}
+    )
+    
+    try:
+        result = response.json()
+        if 'error' in result:
+            return render_template('index.html', error_message=result['error'])
+        return render_template('index.html', 
+                             success_message="Modelo actualizado exitosamente")
+    except json.JSONDecodeError:
+        return render_template('index.html', 
+                             error_message="Error al procesar la respuesta del servidor")
+    
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5000, debug=True)

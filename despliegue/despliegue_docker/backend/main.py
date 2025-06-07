@@ -8,6 +8,9 @@ from datetime import datetime, timezone
 import json
 from sklearn.preprocessing import StandardScaler
 import DataProcessing
+import zipfile
+import os
+import shutil
 
 
 app = FastAPI()
@@ -33,7 +36,7 @@ async def predict(file: UploadFile = File(...)):
         scaled_data = scaler.fit_transform(df)
         df = pd.DataFrame(scaled_data, columns=df.columns)
 
-        with open('resources/svm_model.pkl', 'rb') as f:
+        with open('resources/model.pkl', 'rb') as f:
             model = pickle.load(f)
 
         pred=model.predict(df)
@@ -86,4 +89,61 @@ async def retreive_predictions():
 def read_item(item_id: int, q: Union[str, None] = None):
 
     return {"item_id": item_id, "q": q}
+
+@app.post("/update_model")
+async def update_model(file: UploadFile = File(...)):
+    try:
+        if not file.filename.endswith('.zip'):
+            return JSONResponse(
+                content={"error": "El archivo debe ser un ZIP"},
+                status_code=400
+            )
+        
+        # Crear directorio temporal para extraer los archivos
+        temp_dir = "temp_extract"
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Guardar el archivo ZIP temporalmente
+        temp_zip_path = os.path.join(temp_dir, file.filename)
+        with open(temp_zip_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        # Extraer el ZIP
+        with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
+            zip_ref.extractall(temp_dir)
+        
+        # Verificar que los archivos necesarios existen
+        required_files = ['model.pkl', 'scaler.pkl', 'columns.pkl']
+        for req_file in required_files:
+            if not os.path.exists(os.path.join(temp_dir, req_file)):
+                shutil.rmtree(temp_dir)
+                return JSONResponse(
+                    content={"error": f"Falta el archivo {req_file} en el ZIP"},
+                    status_code=400
+                )
+        
+        # Crear directorio resources si no existe
+        os.makedirs("resources", exist_ok=True)
+        
+        # Mover los archivos a la carpeta resources
+        for req_file in required_files:
+            shutil.move(
+                os.path.join(temp_dir, req_file),
+                os.path.join("resources", req_file)
+            )
+        
+        # Limpiar archivos temporales
+        shutil.rmtree(temp_dir)
+        
+        return JSONResponse(content={"message": "Modelo actualizado exitosamente"})
+        
+    except Exception as e:
+        # Limpiar en caso de error
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
 
