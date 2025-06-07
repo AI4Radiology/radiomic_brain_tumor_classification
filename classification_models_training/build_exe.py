@@ -5,6 +5,8 @@ import sys
 import subprocess
 
 def create_executable():
+    if os.path.basename(os.getcwd()) == 'numpy':
+        sys.exit("🚨 ERROR: No ejecutes este script desde el directorio fuente de numpy.")
     # Get the current directory
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
@@ -31,6 +33,13 @@ def create_executable():
         f'--add-data={metrics_weights_path}{separator}.',
         '--clean',
         '--noconfirm',
+        '--collect-submodules=numpy',
+        '--collect-data=numpy',
+        '--collect-submodules=pandas',
+        '--collect-data=pandas',
+        '--collect-submodules=xgboost',
+        '--collect-data=xgboost',
+        '--collect-binaries=xgboost',
         model_trainer_gui_path
     ]
     
