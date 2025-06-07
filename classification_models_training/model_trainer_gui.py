@@ -4,7 +4,6 @@ import os
 import logging
 import sys
 import pandas as pd
-from contextlib import contextmanager
 
 from flair_reformatter import FlairReformatter
 from model_trainer import ModelTrainer
@@ -78,8 +77,11 @@ class ModelTrainerApp:
     def start_training(self):
         """Starts the model training pipeline in a separate thread to keep GUI responsive."""
         data_path = self.data_dir.get()
-        if not data_path:
-            print("Please select a FLAIR data directory.")
+        prepared_data_path = os.path.join(self.output_dir, "prepared_data.csv")
+        
+        # Check if we have either a data path or prepared_data.csv
+        if not data_path and not os.path.exists(prepared_data_path):
+            print("Por favor seleccione un directorio de datos FLAIR o asegúrese de que existe el archivo prepared_data.csv.")
             return
         
         print("Starting model training pipeline...")
@@ -99,6 +101,10 @@ class ModelTrainerApp:
             
             # Step 1: Run FLAIR reformatting if prepared_data.csv doesn't exist
             if not os.path.exists(prepared_data_path):
+                if not data_path:
+                    print("Error: No se proporcionó un directorio de datos FLAIR y no existe prepared_data.csv.")
+                    return
+                    
                 print("Prepared data not found. Running FLAIR reformatting...")
                 self.reformatter.data_dir = data_path
                 column_names = self.reformatter.process_data()
@@ -149,26 +155,51 @@ class ModelTrainerApp:
 
         try:
             import subprocess
-            if sys.platform == "win32":
-                os.startfile(self.last_report_path)
-                print(f"Abriendo reporte en el visor predeterminado: {self.last_report_path}")
-            elif sys.platform == "darwin":  # macOS
-                subprocess.Popen(["open", self.last_report_path])
-                print(f"Abriendo reporte en el visor predeterminado: {self.last_report_path}")
-            else:  # linux/WSL
+            import platform
+            
+            system = platform.system().lower()
+            
+            if system == "windows":
+                # Windows
                 try:
-                    # Try with wslview (WSL-specific)
-                    subprocess.Popen(["wslview", self.last_report_path])
-                    print(f"Abriendo reporte usando wslview: {self.last_report_path}")
+                    os.startfile(self.last_report_path)
+                    print(f"Abriendo reporte en el visor predeterminado: {self.last_report_path}")
+                except Exception:
+                    # Fallback to explorer.exe
+                    subprocess.Popen(["explorer.exe", self.last_report_path])
+                    print(f"Abriendo reporte usando explorer.exe: {self.last_report_path}")
+            
+            elif system == "linux":
+                # Linux
+                try:
+                    # Try xdg-open first (most common in Linux)
+                    subprocess.Popen(["xdg-open", self.last_report_path])
+                    print(f"Abriendo reporte usando xdg-open: {self.last_report_path}")
                 except FileNotFoundError:
                     try:
-                        # Then try with explorer.exe (Windows)
-                        subprocess.Popen(["explorer.exe", self.last_report_path])
-                        print(f"Abriendo reporte usando explorer.exe: {self.last_report_path}")
+                        # Try with evince (GNOME PDF viewer)
+                        subprocess.Popen(["evince", self.last_report_path])
+                        print(f"Abriendo reporte usando evince: {self.last_report_path}")
                     except FileNotFoundError:
-                        print("No se pudo abrir el reporte automáticamente.")
-                        print(f"Puedes abrir el reporte manualmente desde: {self.last_report_path}")
-                        print("El reporte se encuentra en la carpeta 'report'")
+                        try:
+                            # Try with okular (KDE PDF viewer)
+                            subprocess.Popen(["okular", self.last_report_path])
+                            print(f"Abriendo reporte usando okular: {self.last_report_path}")
+                        except FileNotFoundError:
+                            print("No se pudo abrir el reporte automáticamente.")
+                            print(f"Puedes abrir el reporte manualmente desde: {self.last_report_path}")
+                            print("El reporte se encuentra en la carpeta 'report'")
+            
+            elif system == "darwin":
+                # macOS
+                subprocess.Popen(["open", self.last_report_path])
+                print(f"Abriendo reporte en el visor predeterminado: {self.last_report_path}")
+            
+            else:
+                print(f"Sistema operativo no soportado: {system}")
+                print(f"Puedes abrir el reporte manualmente desde: {self.last_report_path}")
+                print("El reporte se encuentra en la carpeta 'report'")
+                
         except Exception as e:
             print(f"Error al abrir el reporte PDF: {e}")
             print(f"Puedes abrir el reporte manualmente desde: {self.last_report_path}")

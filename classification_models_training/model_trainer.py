@@ -423,14 +423,10 @@ class ModelTrainer:
         X_train_scaled = pd.DataFrame(X_train_scaled, columns=feature_names)
         X_test_scaled = pd.DataFrame(X_test_scaled, columns=feature_names)
 
-        # Apply SMOTE to handle class imbalance
+        # Apply SMOTE only for SVM models
         smote = SMOTE(random_state=rd)
-        X_train_resampled, y_train_resampled = smote.fit_resample(
-            X_train_scaled, y_train
-        )
-
-        # Convert back to DataFrame after SMOTE
-        X_train_resampled = pd.DataFrame(X_train_resampled, columns=feature_names)
+        X_train_smote, y_train_smote = smote.fit_resample(X_train_scaled, y_train)
+        X_train_smote = pd.DataFrame(X_train_smote, columns=feature_names)
 
         print("\n" + "=" * 50)
         print("Initiating model training...")
@@ -438,28 +434,28 @@ class ModelTrainer:
 
         # Train basic models
         print("Training basic Random Forest...")
-        basic_rf = self.basic_random_forest_model(X_train_resampled, y_train_resampled, rd)
+        basic_rf = self.basic_random_forest_model(X_train_scaled, y_train, rd)
 
         print("Training basic XGBoost...")
-        basic_xgb = self.basic_xgboost_model(X_train_resampled, y_train_resampled, rd)
+        basic_xgb = self.basic_xgboost_model(X_train_scaled, y_train, rd)
 
         print("Training basic SVM...")
-        basic_svm = self.basic_svm_model(X_train_resampled, y_train_resampled, rd)
+        basic_svm = self.basic_svm_model(X_train_smote, y_train_smote, rd)
 
         # Train optimized models
         print("\nTraining optimized models...")
         print("Optimized Random Forest...")
         best_rf = self.random_forest_best_hyperparameters(
-            X_train_resampled, y_train_resampled, rd
+            X_train_scaled, y_train, rd
         )
 
         print("Optimized XGBoost...")
         best_xgb = self.xgboost_best_hyperparameters(
-            X_train_resampled, y_train_resampled, rd
+            X_train_scaled, y_train, rd
         )
 
         print("Optimized SVM...")
-        best_svm = self.svm_best_hyperparameters(X_train_resampled, y_train_resampled, rd)
+        best_svm = self.svm_best_hyperparameters(X_train_smote, y_train_smote, rd)
 
         # Create dictionary of all models
         models = {

@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 import re
-import pickle
 
 class FlairReformatter:
     def __init__(self, data_dir, output_dir):
