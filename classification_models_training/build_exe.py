@@ -1,8 +1,10 @@
 import PyInstaller.__main__
 import os
 import platform
+import sys
+import subprocess
 
-def create_working_executable():
+def create_executable():
     # Get the current directory
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
@@ -13,82 +15,94 @@ def create_working_executable():
     # Determine the correct separator based on OS
     separator = ';' if platform.system() == 'Windows' else ':'
     
-    # Define PyInstaller arguments for a working build
-    pyinstaller_args = [
-        model_trainer_gui_path,  # Main script
-        '--name=ModelTrainer',  # Name of the executable
-        '--onefile',  # Create a single executable file
-        '--windowed',  # Don't show console window
-        f'--add-data={metrics_weights_path}{separator}.',  # Include metrics_weights.json
-        '--clean',  # Clean PyInstaller cache
-        '--noconfirm',  # Replace existing spec file
-        # Include necessary packages
-        '--hidden-import=PyQt5',
-        '--hidden-import=PyQt5.QtCore',
-        '--hidden-import=PyQt5.QtGui',
-        '--hidden-import=PyQt5.QtWidgets',
-        '--hidden-import=sklearn',
-        '--hidden-import=sklearn.ensemble',
-        '--hidden-import=sklearn.svm',
-        '--hidden-import=sklearn.preprocessing',
-        '--hidden-import=sklearn.metrics',
-        '--hidden-import=sklearn.model_selection',
-        '--hidden-import=xgboost',
-        '--hidden-import=matplotlib',
-        '--hidden-import=matplotlib.pyplot',
-        '--hidden-import=seaborn',
-        '--hidden-import=pandas',
-        '--hidden-import=numpy',
-        '--hidden-import=reportlab',
-        '--hidden-import=reportlab.lib',
-        '--hidden-import=reportlab.platypus',
-        '--hidden-import=reportlab.lib.styles',
-        '--hidden-import=reportlab.lib.pagesizes',
-        '--hidden-import=reportlab.lib.units',
-        '--hidden-import=reportlab.lib.colors',
-        # Exclude unnecessary modules to reduce size
-        '--exclude-module=matplotlib.tests',
-        '--exclude-module=numpy.random.tests',
-        '--exclude-module=scipy.tests',
-        '--exclude-module=scipy.linalg.tests',
-        '--exclude-module=scipy.sparse.tests',
-        '--exclude-module=scipy.special.tests',
-        '--exclude-module=scipy.stats.tests',
-        '--exclude-module=scipy.optimize.tests',
-        '--exclude-module=scipy.integrate.tests',
-        '--exclude-module=scipy.signal.tests',
-        '--exclude-module=scipy.spatial.tests',
-        '--exclude-module=scipy.fft.tests',
-        '--exclude-module=scipy.io.tests',
-        '--exclude-module=scipy.interpolate.tests',
-        '--exclude-module=scipy.ndimage.tests',
-        '--exclude-module=scipy.cluster.tests',
-        '--exclude-module=scipy.constants.tests',
-        '--exclude-module=scipy.misc.tests',
-        '--exclude-module=scipy.odr.tests',
-        # Exclude unnecessary packages
-        '--exclude-module=unittest',
-        '--exclude-module=email',
-        '--exclude-module=html',
-        '--exclude-module=http',
-        '--exclude-module=xml',
-        '--exclude-module=pydoc',
-        # Optimize imports
-        '--strip',  # Strip symbols from binary
-        '--noupx',  # Don't use UPX compression (can cause issues)
+    # First, ensure we're in a clean environment
+    print("Cleaning PyInstaller cache...")
+    if os.path.exists('build'):
+        import shutil
+        shutil.rmtree('build')
+    if os.path.exists('dist'):
+        shutil.rmtree('dist')
+    
+    # Create spec file first
+    spec_args = [
+        '--name=ModelTrainer',
+        '--onefile',
+        '--windowed',
+        f'--add-data={metrics_weights_path}{separator}.',
+        '--clean',
+        '--noconfirm',
+        model_trainer_gui_path
     ]
     
-    # Run PyInstaller
-    PyInstaller.__main__.run(pyinstaller_args)
+    print("Creating spec file...")
+    PyInstaller.__main__.run(spec_args)
+    
+    # Now modify the spec file to include all necessary imports
+    spec_path = os.path.join(current_dir, 'ModelTrainer.spec')
+    with open(spec_path, 'r') as f:
+        spec_content = f.read()
+    
+    # Add hidden imports to the spec file
+    hidden_imports = [
+        'numpy',
+        'numpy.core._methods',
+        'numpy.lib.format',
+        'numpy.linalg',
+        'numpy.random',
+        'numpy.random.mtrand',
+        'pandas',
+        'pandas._libs',
+        'pandas.core',
+        'pandas.core.algorithms',
+        'pandas.core.arrays',
+        'pandas.core.indexers',
+        'pandas.core.indexes',
+        'pandas.core.internals',
+        'pandas.core.ops',
+        'pandas.core.series',
+        'pandas.core.tools',
+        'pandas.core.util',
+        'sklearn',
+        'sklearn.ensemble',
+        'sklearn.svm',
+        'sklearn.preprocessing',
+        'sklearn.metrics',
+        'sklearn.model_selection',
+        'xgboost',
+        'matplotlib',
+        'matplotlib.pyplot',
+        'seaborn',
+        'reportlab',
+        'reportlab.lib',
+        'reportlab.platypus',
+        'reportlab.lib.styles',
+        'reportlab.lib.pagesizes',
+        'reportlab.lib.units',
+        'reportlab.lib.colors',
+        'imblearn',
+        'imblearn.over_sampling',
+    ]
+    
+    # Modify the spec file to include hidden imports
+    hidden_imports_str = "hiddenimports=[" + ", ".join(f"'{imp}'" for imp in hidden_imports) + "],"
+    spec_content = spec_content.replace("hiddenimports=[],", hidden_imports_str)
+    
+    # Write the modified spec file
+    with open(spec_path, 'w') as f:
+        f.write(spec_content)
+    
+    # Build using the spec file
+    print("Building executable from spec file...")
+    PyInstaller.__main__.run([spec_path, '--clean', '--noconfirm'])
     
     print(f"\nBuild completed successfully!")
     print(f"Executable created in the 'dist' directory")
-    print("\nTo run the application:")
-    if platform.system() == "Windows":
-        print("1. Double-click on ModelTrainer.exe in the 'dist' directory")
-    else:
-        print("1. Open terminal in the 'dist' directory")
-        print("2. Run: ./ModelTrainer")
+    
+    # Make the executable executable on Linux
+    if platform.system() != "Windows":
+        exe_path = os.path.join('dist', 'ModelTrainer')
+        os.chmod(exe_path, 0o755)
+        print(f"Made {exe_path} executable")
 
 if __name__ == "__main__":
-    create_working_executable() 
+    create_executable()
