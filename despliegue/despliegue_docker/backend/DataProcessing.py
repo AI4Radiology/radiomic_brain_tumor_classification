@@ -6,11 +6,6 @@ import re
 import argparse
 import pickle
 
-# Example: override display settings
-pd.set_option('display.max_rows', None)    # Show all rows
-pd.set_option('display.max_columns', None) # Show all columns
-pd.set_option('display.width', None)       # Don't wrap columns
-pd.set_option('display.max_colwidth', None) # Show full column content
 
 inter_dir='processedData'
 
