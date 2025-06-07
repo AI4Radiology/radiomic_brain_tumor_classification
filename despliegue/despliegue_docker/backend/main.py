@@ -33,7 +33,7 @@ async def predict(file: UploadFile = File(...)):
         with open("resources/scaler.pkl", "rb") as f:
             scaler = pickle.load(f)
     
-        scaled_data = scaler.fit_transform(df)
+        scaled_data = scaler.transform(df)
         df = pd.DataFrame(scaled_data, columns=df.columns)
 
         with open('resources/model.pkl', 'rb') as f:
