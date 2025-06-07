@@ -5,10 +5,12 @@ import pandas as pd
 import re
 import argparse
 import pickle
-
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import pairwise_distances
 parser = argparse.ArgumentParser()
 
 parser.add_argument("dataDir", help="ruta al directorio de los .csv FLAIR")
+parser.add_argument("bratsFile", help="ruta al archivo .csv FLAIR de BRATS")
 parser.add_argument("outputDir", help="ruta al directorio de salida")
 
 args = parser.parse_args()
@@ -78,6 +80,7 @@ def tupleExtraction(df):
     return df
 
 
+
 def reformating(input_file):
 
     file_name = os.path.basename(input_file)
@@ -95,12 +98,137 @@ def reformating(input_file):
 
     df_transposed = df.T 
     
+    # setting column refering to the Id to name "Id"
     id_col=[col for col in df_transposed.columns if col.startswith("Id/")][0]
     df_transposed.rename(columns={id_col: "Id"}, inplace=True)
 
+
+        
     output_file = inter_dir+'/'+file_name
 
     df_transposed.to_csv(output_file) #writes processed file
+
+
+
+def concatBratsData(input_file, base_df):
+    def reordenar_nombre_columna(col):
+        partes = col.split('_')
+        if len(partes) == 3:
+            return f"{partes[2]}/{partes[1]}/{partes[0]}"
+        return col
+
+    brats_df = pd.read_csv(input_file)
+    brats_df.columns = [reordenar_nombre_columna(col) for col in brats_df.columns]
+
+    # Renombrar columna Id
+    id_col = [col for col in brats_df.columns if col.startswith("Id/")][0]
+    brats_df.rename(columns={id_col: "Id"}, inplace=True)
+
+    # Limpiar base_df
+    if 'Unnamed: 0' in base_df.columns:
+        base_df.drop(columns=['Unnamed: 0'], inplace=True)
+
+    # Agregar columna de origen
+    base_df['esBase'] = True
+    brats_df['esBase'] = False
+
+    # Asegurar columnas coinciden
+    brats_df = brats_df[base_df.columns]
+
+    # Balancear con respecto a highGrade
+    count_true = (base_df['highGrade'] == True).sum()
+    count_false = (base_df['highGrade'] == False).sum()
+    diff = count_true - count_false
+
+    if diff <= 0:
+        print("No need to balance: already balanced or more False than True.")
+        return base_df
+
+    # Filtrar solo registros False en brats_df
+    brats_false = brats_df[brats_df['highGrade'] == False].copy()
+
+    if brats_false.empty:
+        print("No False entries in BRATS data to use for balancing.")
+        return base_df
+
+    # Calcular la media de registros False en base_df
+    numeric_cols = base_df.select_dtypes(include=np.number).columns
+    base_false_mean = base_df[base_df['highGrade'] == False][numeric_cols].mean()
+
+    # Calcular la distancia euclidiana a la media de base_df[False]
+    distances = pairwise_distances(
+        brats_false[numeric_cols].fillna(0),
+        base_false_mean.values.reshape(1, -1)
+    ).flatten()
+
+    # Agregar distancia y seleccionar los más cercanos
+    brats_false = brats_false.copy()
+    brats_false["distance"] = distances
+    brats_closest = brats_false.nsmallest(diff, "distance").drop(columns="distance")
+
+    # Concatenar solo los seleccionados
+    base_df = pd.concat([base_df, brats_closest], ignore_index=True)
+
+    print(f"\nBRATS data concatenated successfully. Added {len(brats_closest)} records to balance dataset.\n")
+    return base_df
+
+
+'''    def reordenar_nombre_columna(col):
+        partes = col.split('_')
+        if len(partes) == 3:
+            return f"{partes[2]}/{partes[1]}/{partes[0]}"
+        return col
+
+    brats_df = pd.read_csv(input_file)
+    brats_df.columns = [reordenar_nombre_columna(col) for col in brats_df.columns]
+
+    # Renombrar columna Id
+    id_col = [col for col in brats_df.columns if col.startswith("Id/")][0]
+    brats_df.rename(columns={id_col: "Id"}, inplace=True)
+
+    # Limpiar base_df
+    if 'Unnamed: 0' in base_df.columns:
+        base_df.drop(columns=['Unnamed: 0'], inplace=True)
+
+    # Asegurar columnas coinciden
+    brats_df = brats_df[base_df.columns]
+
+    # Balancear con respecto a highGrade
+    count_true = (base_df['highGrade'] == True).sum()
+    count_false = (base_df['highGrade'] == False).sum()
+    diff = count_true - count_false
+
+    if diff <= 0:
+        print("No need to balance: already balanced or more False than True.")
+        return base_df
+
+    # Filtrar solo registros False en brats_df
+    brats_false = brats_df[brats_df['highGrade'] == False].copy()
+
+    if brats_false.empty:
+        print("No False entries in BRATS data to use for balancing.")
+        return base_df
+
+    # Calcular la media de registros False en base_df
+    numeric_cols = base_df.select_dtypes(include=np.number).columns
+    base_false_mean = base_df[base_df['highGrade'] == False][numeric_cols].mean()
+
+    # Calcular la distancia euclidiana a la media de base_df[False]
+    distances = pairwise_distances(
+        brats_false[numeric_cols].fillna(0),  # Evitar NaNs
+        base_false_mean.values.reshape(1, -1)
+    ).flatten()
+
+    # Agregar distancia y seleccionar los más cercanos
+    brats_false = brats_false.copy()
+    brats_false["distance"] = distances
+    brats_closest = brats_false.nsmallest(diff, "distance").drop(columns="distance")
+
+    # Concatenar solo los seleccionados
+    base_df = pd.concat([base_df, brats_closest], ignore_index=True)
+
+    print(f"\nBRATS data concatenated successfully. Added {len(brats_closest)} records to balance dataset.\n")
+    return base_df'''
 
 
 
@@ -146,10 +274,10 @@ def prepareData(df):
 
 
 # ---------------------------- MAIN ----------------------------
+pd.set_option('display.max_columns', None)
 
 files = os.listdir(args.dataDir)
 finalDf = pd.DataFrame()
-
 for file in files:
 
     if file.endswith(".csv"):
@@ -159,9 +287,7 @@ for file in files:
         
         reformating(args.dataDir+'/'+file) 
         df = pd.read_csv(inter_dir+'/'+file) #reads processed file
-        
-        df=tupleExtraction(df)
-        
+                
         # Setting up labels based for tumor grade (high or low) implied by the file name 
         match = re.search(r'\d', file)
         first_digit = match.group() # There is no error handlidng because if there is no match, file name is not valid.
@@ -171,11 +297,37 @@ for file in files:
             df['highGrade'] = True 
         finalDf = pd.concat([finalDf, df])
 
-finalDf.to_csv(args.outputDir+'/base_data.csv')
-finalDf.set_index('Id', inplace=True)
-finalDf = prepareData(finalDf)
-finalDf.to_csv(args.outputDir+'/prepared_data.csv')
+finalDf=concatBratsData(args.bratsFile, finalDf)
+finalDf=tupleExtraction(finalDf)
 
+finalDf.to_csv(args.outputDir+'/base_data.csv')
+
+finalDf.set_index('Id', inplace=True)
+
+
+
+preparedDf = prepareData(finalDf.drop(columns=['esBase']))
+
+preparedDf['esBase'] = finalDf['esBase']  
+
+preparedDf.reset_index(inplace=True)
+
+print("Prepared DataFrame esBase: ", preparedDf['esBase'].unique())
+baseDf_train, df_test= train_test_split(
+    preparedDf[preparedDf['esBase']==True],
+    test_size=0.2,
+    stratify=preparedDf[preparedDf['esBase'] == True]['highGrade'],
+    random_state=42  #51
+)
+
+finalDf_train = pd.concat([baseDf_train, preparedDf[preparedDf['esBase']==False]], ignore_index=True)
+
+finalDf.to_csv(args.outputDir+'/prepared_data.csv')
+finalDf_train.to_csv(args.outputDir+'/prepared_train_data.csv')
+df_test.to_csv(args.outputDir+'/prepared_test_data.csv')
+
+print("df_train: ", finalDf_train.shape)
+print("df_test: ", df_test.shape)
 
 # Save the list
 with open("columns.pkl", "wb") as f:

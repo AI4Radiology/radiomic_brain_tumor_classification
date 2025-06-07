@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  front:
+    build:
+      context: ./front
+    container_name: flask-container
+    networks:
+      - my_network
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+    command: python app.py  # replace with the actual start command for your Flask app
+
+  backend:
+    build:
+      context: ./backend
+    container_name: fastapi-container
+    networks:
+      - my_network
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+    command: uvicorn main:app --host 0.0.0.0 --port 8000  # replace with your FastAPI start command
+
+networks:
+  my_network:
+    driver: bridge
+
