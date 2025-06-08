@@ -16,6 +16,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+import sys
 
 # Scikit-learn imports
 import xgboost as xgb
@@ -235,6 +236,11 @@ class ModelTrainer:
         # Load weights from JSON file
         weights_file = "metrics_weights.json"
         try:
+            # Check if running as executable
+            if getattr(sys, 'frozen', False):
+                # Running as executable
+                base_path = sys._MEIPASS
+                weights_file = os.path.join(base_path, 'classification_models_training', 'metrics_weights.json')
             with open(weights_file, "r") as f:
                 weights = json.load(f)
             print(f"Pesos de métricas cargados desde {weights_file}")

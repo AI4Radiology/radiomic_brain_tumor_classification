@@ -2,7 +2,6 @@ import PyInstaller.__main__
 import os
 import platform
 import sys
-import subprocess
 
 def create_executable():
     if os.path.basename(os.getcwd()) == 'numpy':
@@ -28,9 +27,9 @@ def create_executable():
     # Create spec file first
     spec_args = [
         '--name=ModelTrainer',
-        '--onefile',
+        #'--onefile',
         '--windowed',
-        f'--add-data={metrics_weights_path}{separator}.',
+        f'--add-data={metrics_weights_path}{separator}classification_models_training',
         '--clean',
         '--noconfirm',
         '--collect-submodules=numpy',
@@ -40,6 +39,7 @@ def create_executable():
         '--collect-submodules=xgboost',
         '--collect-data=xgboost',
         '--collect-binaries=xgboost',
+        '--collect-data=imblearn',
         model_trainer_gui_path
     ]
     
