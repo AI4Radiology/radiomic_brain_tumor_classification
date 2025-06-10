@@ -1,5 +1,8 @@
-# Third party libraries
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+# Third party libraries
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -351,7 +354,7 @@ def select_best_model(models_dict, X_test, y_test, rd):
     )
 
     # Load weights from JSON file
-    weights_file = "metrics_weights.json"
+    weights_file = "../metrics_weights.json"
     try:
         with open(weights_file, "r") as f:
             weights = json.load(f)
@@ -591,6 +594,9 @@ if __name__ == "__main__":
 
         # Guardar los nombres de las características
         feature_names = X.columns.tolist()
+
+        print("Features seleccionadas:")
+        print(X.columns.tolist())
 
         # Splitting data
         if args.seed is None:
