@@ -582,8 +582,11 @@ if __name__ == "__main__":
     df = load_data(args.data_path)
 
     if df is not None:
-        # Dividing data
-        X = df.drop(columns=["Id", "highGrade"])
+        # Dividir datos, quitando "Id" solo si existe
+        drop_cols = ["highGrade"]
+        if "Id" in df.columns:
+            drop_cols.insert(0, "Id")
+        X = df.drop(columns=drop_cols)
         y = df["highGrade"]
 
         # Guardar los nombres de las características
